@@ -1,97 +1,93 @@
 from flask import Flask, request, redirect, session, render_template_string
 import psycopg2, psycopg2.extras
-import os
 import urllib.parse
+from datetime import timedelta
 
 app = Flask(__name__)
-app.secret_key = 'studiomix_aac_cariri_2026'
+# Chave mestra reforçada
+app.secret_key = 'studiomix_aac_2026_oficial'
+app.config['SESSION_COOKIE_NAME'] = 'aac_session_admin'
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=12)
 
-# --- CONFIGURAÇÃO BLINDADA DO BANCO POR GEMINI ---
-# Aqui a gente prepara a senha para o sistema não se engasgar
-senha_crua = 'roberiomix2026'
-senha_limpa = urllib.parse.quote_plus(senha_crua)
+# --- BANCO DE DADOS ---
+senha_banco = 'roberiomix2026'
+senha_limpa = urllib.parse.quote_plus(senha_banco)
 DATABASE_URL = f"postgresql://postgres.bshyfeshtojiucusqzri:{senha_limpa}@aws-0-sa-east-1.pooler.supabase.com:6543/postgres"
 
 def get_db_connection():
     try:
-        # Tenta conectar. Se demorar mais de 10 segundos, ele para.
         return psycopg2.connect(DATABASE_URL, connect_timeout=10)
-    except Exception as e:
-        print(f"Erro de Conexão: {e}")
+    except:
         return None
 
 @app.route('/')
 def index():
-    # O aviso que você pediu para o seu cliente e atletas
-    return render_template_string('''
-        <body style="background:#004a23; display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh; font-family:sans-serif; color:white; text-align:center; margin:0;">
-            <div style="background:rgba(255,255,255,0.1); padding:40px; border-radius:20px; border:2px solid #ceb05c; max-width:85%; box-shadow: 0 10px 30px rgba(0,0,0,0.3);">
-                <h2 style="color:#ceb05c; margin-top:0;">Portal do Atleta AAC</h2>
-                <p style="font-size:1.3rem; line-height:1.6;">Por favor, aguarde um instante.<br>Estamos carregando o sistema de cadastro do portal do atleta.</p>
-                <div style="border: 5px solid #f3f3f3; border-top: 5px solid #ceb05c; border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; margin: 30px auto;"></div>
-            </div>
-            <script>setTimeout(function(){ window.location.href = "/login"; }, 6000);</script>
-            <style>@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }</style>
-        </body>
-    ''')
+    return redirect('/login')
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
+    msg = ""
     if request.method == 'POST':
-        if request.form.get('u') == 'admin' and request.form.get('p') == 'mix2026':
-            session['adm'] = True
+        # O .strip() garante que não vá nenhum espaço em branco
+        u = str(request.form.get('u')).strip()
+        p = str(request.form.get('p')).strip()
+        
+        # ACEITA OS DOIS LOGINS POR SEGURANÇA
+        if (u == 'roberiomix2026' and p == 'roberiomix2026') or (u == 'admin' and p == 'mix2026'):
+            session.clear() # Limpa qualquer lixo de sessão anterior
+            session['adm_logado'] = True
             return redirect('/admin_studiomix')
+        else:
+            msg = "Usuário ou Senha não conferem!"
+            
     return render_template_string('''
         <body style="background:#004a23; display:flex; align-items:center; justify-content:center; height:100vh; font-family:sans-serif; margin:0;">
             <form method="POST" style="background:white; padding:40px; border-radius:20px; text-align:center; width:300px; box-shadow:0 10px 25px rgba(0,0,0,0.5);">
-                <h2 style="color:#004a23; margin-bottom:25px;">Acesso AAC</h2>
+                <h2 style="color:#004a23; margin-bottom:20px;">AAC - Portal</h2>
+                {% if msg %}<p style="color:red; background:#fee; padding:10px; border-radius:5px; font-size:13px; font-weight:bold;">{{ msg }}</p>{% endif %}
                 <input name="u" placeholder="Usuário" required style="width:100%; padding:12px; margin-bottom:15px; border:1px solid #ddd; border-radius:8px;">
                 <input type="password" name="p" placeholder="Senha" required style="width:100%; padding:12px; margin-bottom:25px; border:1px solid #ddd; border-radius:8px;">
-                <button type="submit" style="background:#004a23; color:#ceb05c; padding:15px; border:none; border-radius:8px; cursor:pointer; font-weight:bold; width:100%;">ENTRAR</button>
+                <button type="submit" style="background:#004a23; color:#ceb05c; padding:15px; border:none; border-radius:8px; cursor:pointer; font-weight:bold; width:100%; font-size:16px;">ENTRAR AGORA</button>
             </form>
         </body>
-    ''')
+    ''', msg=msg)
 
 @app.route('/admin_studiomix')
 def admin():
-    if not session.get('adm'): return redirect('/login')
-    
+    # Se o crachá não estiver na mão, volta pro login
+    if not session.get('adm_logado'):
+        return redirect('/login')
+        
     conn = get_db_connection()
-    if not conn:
-        return "Erro de Conexão: O sistema não conseguiu falar com o banco de dados. Verifique a senha no Supabase."
+    if not conn: 
+        return "Erro de conexão com o banco. Aguarde 30 segundos e atualize a página."
     
-    try:
-        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
-        cur.execute("SELECT * FROM moradores ORDER BY nome ASC")
-        atletas = cur.fetchall()
-        conn.close()
-    except Exception as e:
-        if conn: conn.close()
-        return f"Erro na Tabela: Certifique-se de que a tabela 'moradores' existe no Supabase. Detalhe: {e}"
-
+    cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+    cur.execute("SELECT * FROM moradores ORDER BY nome ASC")
+    atletas = cur.fetchall()
+    conn.close()
+    
     return render_template_string('''
         <body style="background:#f4f4f4; font-family:sans-serif; margin:0;">
             <div style="background:#004a23; color:white; padding:20px; display:flex; justify-content:space-between; align-items:center;">
                 <h2 style="margin:0;">AAC - Painel Administrativo</h2>
-                <a href="/login" style="color:#ceb05c; font-weight:bold; text-decoration:none;">SAIR</a>
+                <a href="/login" style="color:#ceb05c; font-weight:bold; text-decoration:none; border:1px solid #ceb05c; padding:5px 10px; border-radius:5px;">SAIR</a>
             </div>
             <div style="padding:20px;">
                 <div style="background:white; border-radius:10px; padding:20px; box-shadow:0 2px 5px rgba(0,0,0,0.1);">
                     <table style="width:100%; border-collapse:collapse;">
                         <tr style="background:#ceb05c; color:#004a23;">
                             <th style="padding:12px; text-align:left;">Atleta</th>
-                            <th style="padding:12px; text-align:left;">CPF</th>
                             <th style="padding:12px; text-align:left;">WhatsApp</th>
                         </tr>
                         {% for a in atletas %}
                         <tr style="border-bottom:1px solid #eee;">
                             <td style="padding:12px;">{{ a.nome }}</td>
-                            <td style="padding:12px;">{{ a.cpf }}</td>
                             <td style="padding:12px;">{{ a.whatsapp }}</td>
                         </tr>
                         {% endfor %}
                     </table>
-                    {% if not atletas %}<p style="text-align:center; padding:30px; color:#666;">Sistema Conectado com Sucesso! Aguardando novos cadastros.</p>{% endif %}
+                    {% if not atletas %}<p style="text-align:center; padding:30px; color:#666;">Sistema Conectado com Sucesso! Aguardando o primeiro cadastro.</p>{% endif %}
                 </div>
             </div>
         </body>
