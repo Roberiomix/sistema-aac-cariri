@@ -6,7 +6,7 @@ app = Flask(__name__)
 app.secret_key = 'studiomix_aac_cariri_2026'
 
 # --- ABAIXO: COLOQUE SUA SENHA NO LUGAR DE 'SUA_SENHA_AQUI' ---
-DATABASE_URL = "postgresql://postgres.bshyfeshtojiucusqzri:@#Barbalha1981#@@aws-0-sa-east-1.pooler.supabase.com:6543/postgres"
+DATABASE_URL = "postgresql://postgres.bshyfeshtojiucusqzri:roberiomix2026@aws-0-sa-east-1.pooler.supabase.com:6543/postgres"
 
 def get_db_connection():
     return psycopg2.connect(DATABASE_URL)
