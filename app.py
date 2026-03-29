@@ -7,14 +7,18 @@ app.secret_key = 'studiomix_aac_cariri_MASTER_VISUAL_RESTORE_V33_2026'
 
 # --- CONFIGURAÇÕES ADAPTADAS ---
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+# O código agora procura exatamente nas pastas do seu repositório
 UPLOAD_FOLDER = os.path.join(BASE_DIR, "uploads")
 STATIC_FOLDER = os.path.join(BASE_DIR, "static")
 DB_PATH = os.path.join(BASE_DIR, "aac_atleta_v_final.db")
 
+# Garante que a pasta de uploads exista para não dar erro no cadastro
 if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
 
 def get_db_connection():
+    # Nota: No Render, o SQLite é temporário. Os dados novos sumirão ao reiniciar.
+    # Em breve migraremos para o Supabase.
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     return conn
@@ -36,6 +40,7 @@ def exibir_foto(filename):
 def static_file(filename):
     return send_from_directory(STATIC_FOLDER, filename)
 
+# COMPONENTES FIXOS
 SUPORTE_HTML = '''
 <div style="margin-top:25px; text-align:center; padding:15px; border-top:1px solid #eee;">
     <a href="https://wa.me/5588992295295" target="_blank" style="text-decoration:none; color:#25D366; font-weight:bold; display:flex; align-items:center; justify-content:center; gap:8px; font-size:14px;">
@@ -45,6 +50,7 @@ SUPORTE_HTML = '''
 '''
 RADIO_PLAYER = '<iframe src="https://player.conectastm.com/player-barra/11684/000000?autoplay=1" frameborder="0" width="100%" height="31" style="display:block;"></iframe>'
 
+# --- 1. CADASTRO ---
 @app.route("/")
 def index():
     return render_template_string('''
@@ -55,8 +61,24 @@ def index():
         body{font-family:'Segoe UI', sans-serif; background: var(--bg); margin:0; padding:0;}
         .card{background:white; max-width:600px; margin:20px auto; border-radius:25px; box-shadow:0 15px 35px rgba(0,0,0,0.1); overflow:hidden;}
         .header{background: var(--verde); padding:40px; text-align:center;}
-        .logo-box{background:white; width:120px; height:120px; border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 15px; box-shadow:0 8px 20px rgba(0,0,0,0.2);}
-        .logo{height:90px;}
+        .logo-box{
+            background:transparent; /* Agora o fundo é transparente! */
+            width:130px; 
+            height:130px; 
+            border-radius:50%; 
+            display:flex; 
+            align-items:center; 
+            justify-content:center; 
+            margin:0 auto 15px; 
+            box-shadow:0 8px 20px rgba(0,0,0,0.2);
+            overflow: hidden;
+            border: 4px solid var(--dourado); /* Borda dourada pro acabamento */
+        }
+        .logo{
+            height:100%; /* Escudo preenche a altura do círculo */
+            width: auto;
+            object-fit: contain; /* Garante que o escudo não fique achatado */
+        }
         .form-content{padding:30px;}
         .btn-ja-cadastrado{background: var(--dourado); color: var(--verde); padding:15px; border-radius:12px; text-decoration:none; display:block; font-weight:bold; margin-bottom:25px; border:2px solid var(--verde); text-align:center;}
         .section-title{background:#e8f5e9; color:var(--verde); padding:15px; border-radius:12px; margin:30px 0 10px; font-weight:800; text-transform:uppercase; font-size:13px; border-left:6px solid var(--dourado);}
@@ -67,7 +89,7 @@ def index():
     <div class="card">
         <div class="header">
             <div class="logo-box">
-                <img src="/static/logo.aac.jpeg" class="logo">
+                <img src="/static/logo.aac.png" class="logo">
             </div>
             <h1 style="margin:0; font-size:32px; color:var(--dourado);">AAC CARIRI</h1>
             <p style="margin:5px 0 0; color:white; font-weight:bold;">INSCRIÇÃO OFICIAL 2026</p>
@@ -100,14 +122,14 @@ def index():
         </div></div></body></html>
     ''', suporte=SUPORTE_HTML)
 
-# MANTIVE O RESTANTE DO CÓDIGO (ADMIN, LOGIN, MEU PORTAL) EXATAMENTE IGUAL
-# APENAS AJUSTANDO OS CAMINHOS DAS IMAGENS ONDE APARECEM
+# MANTENHA O RESTANTE DO CÓDIGO (ADMIN, LOGIN, MEU PORTAL) EXATAMENTE IGUAL
+# APENAS AJUSTANDO OS CAMINHOS DAS IMAGENS ONDE APARECEM NOS TEMPLATES
 
 @app.route("/login", methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
         if request.form.get('u')=='admin' and request.form.get('p')=='mix2026': session['adm']='admin'; return redirect('/admin_studiomix')
-    return render_template_string('''<body style="background:#004a23; display:flex; align-items:center; justify-content:center; height:100vh; font-family:sans-serif; margin:0;"><form method="POST" style="background:white; padding:40px; border-radius:25px; text-align:center; border:4px solid #ceb05c; width:340px;"><img src="/static/logo.aac.jpeg" height="55"><h2>Painel Gestor</h2><input name="u" placeholder="Usuário" style="width:100%; padding:12px; margin-bottom:10px; border-radius:10px; border:1px solid #ddd; box-sizing:border-box;"><input type="password" name="p" placeholder="Senha" style="width:100%; padding:12px; margin-bottom:20px; border-radius:10px; border:1px solid #ddd; box-sizing:border-box;"><button style="background:#004a23; color:#ceb05c; width:100%; padding:18px; border-radius:12px; border:none; font-weight:bold; cursor:pointer;">ENTRAR NO PAINEL</button>{{ suporte | safe }}</form></body>''', suporte=SUPORTE_HTML)
+    return render_template_string('''<body style="background:#004a23; display:flex; align-items:center; justify-content:center; height:100vh; font-family:sans-serif; margin:0;"><form method="POST" style="background:white; padding:40px; border-radius:25px; text-align:center; border:4px solid #ceb05c; width:340px;"><img src="/static/logo.aac.png" height="55"><h2>Painel Gestor</h2><input name="u" placeholder="Usuário" style="width:100%; padding:12px; margin-bottom:10px; border-radius:10px; border:1px solid #ddd; box-sizing:border-box;"><input type="password" name="p" placeholder="Senha" style="width:100%; padding:12px; margin-bottom:20px; border-radius:10px; border:1px solid #ddd; box-sizing:border-box;"><button style="background:#004a23; color:#ceb05c; width:100%; padding:18px; border-radius:12px; border:none; font-weight:bold; cursor:pointer;">ENTRAR NO PAINEL</button>{{ suporte | safe }}</form></body>''', suporte=SUPORTE_HTML)
 
 @app.route("/login_atleta", methods=['GET', 'POST'])
 def login_atleta():
@@ -115,7 +137,7 @@ def login_atleta():
         u = request.form.get('u'); p = request.form.get('p')
         atleta = query_db("SELECT id FROM moradores WHERE login_usuario=? AND senha=?", (u, p), one=True)
         if atleta: session['atleta_id'] = atleta['id']; return redirect('/meu_portal')
-    return render_template_string('''<body style="background:#004a23; display:flex; align-items:center; justify-content:center; height:100vh; font-family:sans-serif; margin:0;"><form method="POST" action="/login_atleta" style="background:white; padding:40px; border-radius:25px; text-align:center; border:4px solid #ceb05c; width:340px;"><img src="/static/logo.aac.jpeg" height="55"><h2>Portal do Atleta</h2><input name="u" placeholder="Usuário" required style="width:100%; padding:15px; margin-bottom:10px; border-radius:10px; border:1px solid #ddd; box-sizing:border-box;"><input type="password" name="p" placeholder="Senha" required style="width:100%; padding:15px; margin-bottom:20px; border-radius:10px; border:1px solid #ddd; box-sizing:border-box;"><button type="submit" style="background:#004a23; color:#ceb05c; padding:18px; width:100%; border-radius:12px; border:none; font-weight:900; cursor:pointer;">ENTRAR</button>{{ suporte | safe }}</form></body>''', suporte=SUPORTE_HTML)
+    return render_template_string('''<body style="background:#004a23; display:flex; align-items:center; justify-content:center; height:100vh; font-family:sans-serif; margin:0;"><form method="POST" action="/login_atleta" style="background:white; padding:40px; border-radius:25px; text-align:center; border:4px solid #ceb05c; width:340px;"><img src="/static/logo.aac.png" height="55"><h2>Portal do Atleta</h2><input name="u" placeholder="Usuário" required style="width:100%; padding:15px; margin-bottom:10px; border-radius:10px; border:1px solid #ddd; box-sizing:border-box;"><input type="password" name="p" placeholder="Senha" required style="width:100%; padding:15px; margin-bottom:20px; border-radius:10px; border:1px solid #ddd; box-sizing:border-box;"><button type="submit" style="background:#004a23; color:#ceb05c; padding:18px; width:100%; border-radius:12px; border:none; font-weight:900; cursor:pointer;">ENTRAR</button>{{ suporte | safe }}</form></body>''', suporte=SUPORTE_HTML)
 
 @app.route("/meu_portal")
 def meu_portal():
@@ -128,7 +150,7 @@ def meu_portal():
     try: data_br = datetime.strptime(a['nascimento'], '%Y-%m-%d').strftime('%d/%m/%Y')
     except: data_br = a['nascimento']
     
-    return render_template_string('''<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width, initial-scale=1"><style>@media all {:root { --verde: #004a23; --dourado: #ceb05c; }body{ background:#f0f2f5; font-family:sans-serif; padding:0; text-align:center; margin:0;}.credit-card { width:350px; height:215px; border-radius:18px; position:relative; color:white; background: linear-gradient(135deg, #004a23 0%, #002d15 100%) !important; border:2px solid var(--dourado); overflow:hidden; -webkit-print-color-adjust: exact; margin:20px auto; box-shadow:0 15px 35px rgba(0,0,0,0.3); }.front .photo-box { position:absolute; top:15px; left:15px; width:110px; height:140px; border-radius:10px; border:2px solid var(--dourado); background:white; overflow:hidden; z-index:1;}.front .logo-mini { position:absolute; top:12px; right:12px; height:45px; background:white; border-radius:50%; padding:5px; z-index:10; }.front .posicao-central { position:absolute; top:80px; left:135px; right:10px; text-align:center; font-weight:900; color:var(--dourado); font-size:16px; text-transform:uppercase; z-index:5; }.front .atleta-info { position:absolute; bottom:12px; left:135px; right:15px; text-align:center; z-index:10; }.back .details { padding:15px; text-align:left; font-size:10px; line-height:1.3; margin-top:10px; }.back .pix-box { position:absolute; bottom:10px; right:10px; width:75px; height:75px; background:white; padding:4px; border-radius:8px; text-align:center;}.back .pix-text { position:absolute; bottom:92px; right:10px; font-size:6px; font-weight:bold; color:var(--dourado); text-transform:uppercase; width:75px; text-align:center; }}@media print { .btn-print, h2, .sop, .radio-box { display:none; } }</style></head><body><div class="radio-box" style="position:sticky; top:0; z-index:1000;">{{ radio | safe }}</div><div class="card-container" style="padding-top:20px;"><div class="credit-card front"><img src="/static/logo.aac.jpeg" class="logo-mini"><div class="posicao-central">{{a['posicao']}}</div><div class="photo-box"><img src="/exibir_foto/{{a['foto']}}" style="width:100%; height:100%; object-fit:cover;"></div><div class="atleta-info"><div style="font-size:15px; font-weight:900; color:white; text-transform:uppercase;">{{a['nome']}}</div><div style="font-size:10px; color:var(--dourado); letter-spacing:1px; font-weight:bold; margin-top:3px;">ATLETA OFICIAL AAC</div></div></div><div class="credit-card back"><div style="width:100%; height:40px; background:#111; margin-top:20px;"></div><div class="details"><b>MÃE:</b> {{a['mae']}}<br><b>PAI:</b> {{a['pai']}}<br><b>CONTATO:</b> {{a['whatsapp']}}<br><b>NASCIMENTO:</b> {{data_br}}<br><b>CPF:</b> {{a['cpf']}}<br><br><b style="color:var(--dourado);">ASSOCIAÇÃO ATLÉTICA CARIRI</b></div><div class="pix-text">SCANEE PARA PAGAR SUA MENSALIDADE</div><div class="pix-box"><img src="/static/qrcod.jpg" style="width:100%;"></div></div></div><button onclick="window.print()" class="btn-print" style="padding:15px 30px; background:var(--verde); color:var(--dourado); border:none; border-radius:15px; font-weight:bold; cursor:pointer; margin-bottom:20px;">🖨️ IMPRIMIR CARTEIRINHA</button><div class="sop">{{ suporte | safe }}</div></body></html>''', a=a, data_br=data_br, suporte=SUPORTE_HTML, radio=RADIO_PLAYER)
+    return render_template_string('''<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width, initial-scale=1"><style>@media all {:root { --verde: #004a23; --dourado: #ceb05c; }body{ background:#f0f2f5; font-family:sans-serif; padding:0; text-align:center; margin:0;}.credit-card { width:350px; height:215px; border-radius:18px; position:relative; color:white; background: linear-gradient(135deg, #004a23 0%, #002d15 100%) !important; border:2px solid var(--dourado); overflow:hidden; -webkit-print-color-adjust: exact; margin:20px auto; box-shadow:0 15px 35px rgba(0,0,0,0.3); }.front .photo-box { position:absolute; top:15px; left:15px; width:110px; height:140px; border-radius:10px; border:2px solid var(--dourado); background:white; overflow:hidden; z-index:1;}.front .logo-mini { position:absolute; top:12px; right:12px; height:45px; background:white; border-radius:50%; padding:5px; z-index:10; }.front .posicao-central { position:absolute; top:80px; left:135px; right:10px; text-align:center; font-weight:900; color:var(--dourado); font-size:16px; text-transform:uppercase; z-index:5; }.front .atleta-info { position:absolute; bottom:12px; left:135px; right:15px; text-align:center; z-index:10; }.back .details { padding:15px; text-align:left; font-size:10px; line-height:1.3; margin-top:10px; }.back .pix-box { position:absolute; bottom:10px; right:10px; width:75px; height:75px; background:white; padding:4px; border-radius:8px; text-align:center;}.back .pix-text { position:absolute; bottom:92px; right:10px; font-size:6px; font-weight:bold; color:var(--dourado); text-transform:uppercase; width:75px; text-align:center; }}@media print { .btn-print, h2, .sop, .radio-box { display:none; } }</style></head><body><div class="radio-box" style="position:sticky; top:0; z-index:1000;">{{ radio | safe }}</div><div class="card-container" style="padding-top:20px;"><div class="credit-card front"><img src="/static/logo.aac.png" class="logo-mini"><div class="posicao-central">{{a['posicao']}}</div><div class="photo-box"><img src="/exibir_foto/{{a['foto']}}" style="width:100%; height:100%; object-fit:cover;"></div><div class="atleta-info"><div style="font-size:15px; font-weight:900; color:white; text-transform:uppercase;">{{a['nome']}}</div><div style="font-size:10px; color:var(--dourado); letter-spacing:1px; font-weight:bold; margin-top:3px;">ATLETA OFICIAL AAC</div></div></div><div class="credit-card back"><div style="width:100%; height:40px; background:#111; margin-top:20px;"></div><div class="details"><b>MÃE:</b> {{a['mae']}}<br><b>PAI:</b> {{a['pai']}}<br><b>CONTATO:</b> {{a['whatsapp']}}<br><b>NASCIMENTO:</b> {{data_br}}<br><b>CPF:</b> {{a['cpf']}}<br><br><b style="color:var(--dourado);">ASSOCIAÇÃO ATLÉTICA CARIRI</b></div><div class="pix-text">SCANEE PARA PAGAR SUA MENSALIDADE</div><div class="pix-box"><img src="/static/qrcod.jpg" style="width:100%;"></div></div></div><button onclick="window.print()" class="btn-print" style="padding:15px 30px; background:var(--verde); color:var(--dourado); border:none; border-radius:15px; font-weight:bold; cursor:pointer; margin-bottom:20px;">🖨️ IMPRIMIR CARTEIRINHA</button><div class="sop">{{ suporte | safe }}</div></body></html>''', a=a, data_br=data_br, suporte=SUPORTE_HTML, radio=RADIO_PLAYER)
 
 # MANTENHA AS DEMAIS FUNÇÕES (CADASTRAR, ADMIN, ETC)
 @app.route("/admin_studiomix")
@@ -146,7 +168,7 @@ def admin():
 def ver_ficha(id):
     if not session.get('adm'): return redirect('/login')
     a = query_db("SELECT * FROM moradores WHERE id=?", (id,), one=True)
-    return render_template_string('''<body style="font-family:serif; padding:20px; background:white; line-height:1.5;"><div style="border:5px double #004a23; padding:40px; max-width:850px; margin:auto; position:relative;"><div style="position:absolute; right:40px; top:120px; border:4px solid #004a23; padding:5px;"><img src="/exibir_foto/{{a['foto']}}" style="width:145px; height:185px; object-fit:cover;"></div><center><img src="/static/logo.aac.jpeg" height="90"><h1 style="color:#004a23; margin:10px 0; padding-right:150px;">FICHA DE INSCRIÇÃO</h1></center><br><hr style="border:2px solid #004a23;"><div style="font-size:14px; margin-top:20px;"><p><b>ATLETA:</b> {{a['nome']}} | <b>CPF:</b> {{a['cpf']}}<br><b>POSIÇÃO:</b> {{a['posicao']}} | <b>NASC:</b> {{a['nascimento']}}</p></div><center><button onclick="window.print()">IMPRIMIR</button></center></div></body>''', a=a)
+    return render_template_string('''<body style="font-family:serif; padding:20px; background:white; line-height:1.5;"><div style="border:5px double #004a23; padding:40px; max-width:850px; margin:auto; position:relative;"><div style="position:absolute; right:40px; top:120px; border:4px solid #004a23; padding:5px;"><img src="/exibir_foto/{{a['foto']}}" style="width:145px; height:185px; object-fit:cover;"></div><center><img src="/static/logo.aac.png" height="90"><h1 style="color:#004a23; margin:10px 0; padding-right:150px;">FICHA DE INSCRIÇÃO</h1></center><br><hr style="border:2px solid #004a23;"><div style="font-size:14px; margin-top:20px;"><p><b>ATLETA:</b> {{a['nome']}} | <b>CPF:</b> {{a['cpf']}}<br><b>POSIÇÃO:</b> {{a['posicao']}} | <b>NASC:</b> {{a['nascimento']}}</p></div><center><button onclick="window.print()">IMPRIMIR</button></center></div></body>''', a=a)
 
 @app.route("/cadastrar", methods=["POST"])
 def cadastrar():
@@ -159,21 +181,6 @@ def cadastrar():
                  (f.get('nome').upper(), f.get('cpf'), f.get('nasc'), f.get('rg'), f.get('nat'), f.get('posicao'), f.get('pe'), f.get('peso'), f.get('altura'), f.get('clube'), f.get('mae'), f.get('mae_cpf'), f.get('pai'), f.get('pai_cpf'), f.get('nis'), f.get('escola'), f.get('serie'), f.get('turma'), f.get('turno'), f.get('whatsapp'), f.get('tel_resp'), f.get('endereco'), f.get('bairro'), f.get('cidade'), f.get('cep'), f.get('resp_atleta'), f.get('user'), f.get('pass'), f.get('email'), fname, f.get('sangue'), 'Não'))
         return redirect('/sucesso')
     except Exception as e: return str(e)
-
-@app.route("/toggle_status/<int:id>")
-def toggle_status(id):
-    if not session.get('adm'): return redirect('/login')
-    atleta = query_db("SELECT liberada FROM moradores WHERE id=?", (id,), one=True)
-    novo = 'Não' if atleta['liberada'] == 'Sim' else 'Sim'
-    query_db("UPDATE moradores SET liberada=? WHERE id=?", (novo, id))
-    return redirect('/admin_studiomix')
-
-@app.route("/logout")
-def logout(): session.clear(); return redirect('/')
-
-@app.route("/del_atleta/<int:id>")
-def del_atleta(id):
-    query_db("DELETE FROM moradores WHERE id=?", (id,)); return redirect('/admin_studiomix')
 
 @app.route("/sucesso")
 def sucesso():
