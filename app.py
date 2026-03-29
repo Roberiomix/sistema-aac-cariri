@@ -6,32 +6,32 @@ import urllib.parse
 app = Flask(__name__)
 app.secret_key = 'studiomix_aac_cariri_2026'
 
-# --- CONFIGURAÇÃO BLINDADA DO BANCO ---
-password = urllib.parse.quote_plus('roberiomix2026')
-DATABASE_URL = f"postgresql://postgres.bshyfeshtojiucusqzri:{password}@aws-0-sa-east-1.pooler.supabase.com:6543/postgres"
+# --- CONFIGURAÇÃO BLINDADA DO BANCO POR GEMINI ---
+# Aqui a gente prepara a senha para o sistema não se engasgar
+senha_crua = 'roberiomix2026'
+senha_limpa = urllib.parse.quote_plus(senha_crua)
+DATABASE_URL = f"postgresql://postgres.bshyfeshtojiucusqzri:{senha_limpa}@aws-0-sa-east-1.pooler.supabase.com:6543/postgres"
 
 def get_db_connection():
     try:
+        # Tenta conectar. Se demorar mais de 10 segundos, ele para.
         return psycopg2.connect(DATABASE_URL, connect_timeout=10)
-    except:
+    except Exception as e:
+        print(f"Erro de Conexão: {e}")
         return None
 
 @app.route('/')
 def index():
-    # Tela de aviso profissional que você solicitou
+    # O aviso que você pediu para o seu cliente e atletas
     return render_template_string('''
         <body style="background:#004a23; display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh; font-family:sans-serif; color:white; text-align:center; margin:0;">
-            <img src="https://sistema-aac-cariri.onrender.com/static/logo.aac.png" height="100" style="margin-bottom:20px;" onerror="this.style.display='none'">
             <div style="background:rgba(255,255,255,0.1); padding:40px; border-radius:20px; border:2px solid #ceb05c; max-width:85%; box-shadow: 0 10px 30px rgba(0,0,0,0.3);">
                 <h2 style="color:#ceb05c; margin-top:0;">Portal do Atleta AAC</h2>
                 <p style="font-size:1.3rem; line-height:1.6;">Por favor, aguarde um instante.<br>Estamos carregando o sistema de cadastro do portal do atleta.</p>
-                <div class="loader"></div>
+                <div style="border: 5px solid #f3f3f3; border-top: 5px solid #ceb05c; border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; margin: 30px auto;"></div>
             </div>
             <script>setTimeout(function(){ window.location.href = "/login"; }, 6000);</script>
-            <style>
-                .loader { border: 5px solid #f3f3f3; border-top: 5px solid #ceb05c; border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; margin: 30px auto; }
-                @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-            </style>
+            <style>@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }</style>
         </body>
     ''')
 
@@ -43,11 +43,11 @@ def login():
             return redirect('/admin_studiomix')
     return render_template_string('''
         <body style="background:#004a23; display:flex; align-items:center; justify-content:center; height:100vh; font-family:sans-serif; margin:0;">
-            <form method="POST" style="background:white; padding:40px; border-radius:20px; text-align:center; width:320px; box-shadow:0 10px 25px rgba(0,0,0,0.5);">
-                <h2 style="color:#004a23; margin-bottom:30px;">Acesso AAC</h2>
+            <form method="POST" style="background:white; padding:40px; border-radius:20px; text-align:center; width:300px; box-shadow:0 10px 25px rgba(0,0,0,0.5);">
+                <h2 style="color:#004a23; margin-bottom:25px;">Acesso AAC</h2>
                 <input name="u" placeholder="Usuário" required style="width:100%; padding:12px; margin-bottom:15px; border:1px solid #ddd; border-radius:8px;">
                 <input type="password" name="p" placeholder="Senha" required style="width:100%; padding:12px; margin-bottom:25px; border:1px solid #ddd; border-radius:8px;">
-                <button type="submit" style="background:#004a23; color:#ceb05c; padding:15px; border:none; border-radius:8px; cursor:pointer; font-weight:bold; width:100%; font-size:1rem;">ENTRAR NO PORTAL</button>
+                <button type="submit" style="background:#004a23; color:#ceb05c; padding:15px; border:none; border-radius:8px; cursor:pointer; font-weight:bold; width:100%;">ENTRAR</button>
             </form>
         </body>
     ''')
@@ -55,18 +55,19 @@ def login():
 @app.route('/admin_studiomix')
 def admin():
     if not session.get('adm'): return redirect('/login')
-    conn = get_db_connection()
-    if not conn: return "Erro de Conexão: Verifique se a senha no Supabase é 'roberiomix2026'."
     
-    atletas = []
+    conn = get_db_connection()
+    if not conn:
+        return "Erro de Conexão: O sistema não conseguiu falar com o banco de dados. Verifique a senha no Supabase."
+    
     try:
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         cur.execute("SELECT * FROM moradores ORDER BY nome ASC")
         atletas = cur.fetchall()
         conn.close()
-    except:
-        conn.close()
-        return "Erro ao ler tabela. Certifique-se de que criou a tabela 'moradores' no SQL Editor do Supabase."
+    except Exception as e:
+        if conn: conn.close()
+        return f"Erro na Tabela: Certifique-se de que a tabela 'moradores' existe no Supabase. Detalhe: {e}"
 
     return render_template_string('''
         <body style="background:#f4f4f4; font-family:sans-serif; margin:0;">
@@ -90,7 +91,7 @@ def admin():
                         </tr>
                         {% endfor %}
                     </table>
-                    {% if not atletas %}<p style="text-align:center; padding:30px; color:#666;">Sistema Conectado! Nenhum atleta cadastrado ainda.</p>{% endif %}
+                    {% if not atletas %}<p style="text-align:center; padding:30px; color:#666;">Sistema Conectado com Sucesso! Aguardando novos cadastros.</p>{% endif %}
                 </div>
             </div>
         </body>
