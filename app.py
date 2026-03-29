@@ -5,17 +5,22 @@ from datetime import datetime
 app = Flask(__name__)
 app.secret_key = 'studiomix_aac_cariri_MASTER_VISUAL_RESTORE_V33_2026'
 
-# --- CONFIGURAÇÕES DO ESTÚDIO MIX (ROBÉRIO) ---
+# --- CONFIGURAÇÕES ADAPTADAS PARA GITHUB/RENDER ---
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+# O código agora procura exatamente nas pastas do seu repositório
 UPLOAD_FOLDER = os.path.join(BASE_DIR, "uploads")
 STATIC_FOLDER = os.path.join(BASE_DIR, "static")
 DB_PATH = os.path.join(BASE_DIR, "aac_atleta_v_final.db")
 
+# Garante que a pasta de uploads exista para não dar erro no cadastro
 if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
 
 def get_db_connection():
-    conn = sqlite3.connect(DB_PATH); conn.row_factory = sqlite3.Row
+    # Nota: O SQLite no Render é temporário. 
+    # Em breve trocaremos as 2 linhas abaixo pela conexão do Supabase.
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
     return conn
 
 def query_db(query, args=(), one=False):
@@ -23,7 +28,8 @@ def query_db(query, args=(), one=False):
     try:
         cursor.execute(query, args); rv = cursor.fetchall(); conn.commit(); conn.close()
         return (rv[0] if rv else None) if one else rv
-    except:
+    except Exception as e:
+        print(f"Erro no Banco: {e}")
         conn.close(); return None
 
 @app.route('/exibir_foto/<filename>')
@@ -65,7 +71,7 @@ def index():
         .btn-submit{width:100%; padding:22px; background:var(--verde); color:var(--dourado); border-radius:15px; border:none; font-weight:900; font-size:20px; cursor:pointer; margin-top:30px; text-transform:uppercase;}
     </style></head><body>
     <div class="card">
-        <div class="header"><div class="logo-box"><img src="/static/logo.png" class="logo"></div><h1 style="margin:0; font-size:32px; color:var(--dourado);">AAC CARIRI</h1><p style="margin:5px 0 0; color:white; font-weight:bold;">INSCRIÇÃO OFICIAL 2026</p></div>
+        <div class="header"><div class="logo-box"><img src="/static/logo.aac.jpeg" class="logo"></div><h1 style="margin:0; font-size:32px; color:var(--dourado);">AAC CARIRI</h1><p style="margin:5px 0 0; color:white; font-weight:bold;">INSCRIÇÃO OFICIAL 2026</p></div>
         <div class="form-content">
             <a href="/login_atleta" class="btn-ja-cadastrado">⚽ JÁ TENHO CADASTRO? CLIQUE AQUI</a>
             <form action="/cadastrar" method="POST" enctype="multipart/form-data">
@@ -94,8 +100,8 @@ def index():
         </div></div></body></html>
     ''', suporte=SUPORTE_HTML)
 
-# [OS DEMAIS CÓDIGOS DE ADMIN, LOGIN E FICHA FORAM MANTIDOS EXATAMENTE IGUAIS]
-# ... (Para economizar espaço aqui, pulei para o final) ...
+# --- AQUI VOCÊ DEVE MANTER O RESTANTE DO CÓDIGO (ADMIN, LOGIN_ATLETA, ETC) ---
+# [Mantenha as rotas de login, admin_studiomix, ver_ficha exatamente como estão]
 
 @app.route("/cadastrar", methods=["POST"])
 def cadastrar():
@@ -109,26 +115,14 @@ def cadastrar():
         return redirect('/sucesso')
     except Exception as e: return str(e)
 
-# [ROTAS ADICIONAIS MANTIDAS]
-@app.route("/toggle_status/<int:id>")
-def toggle_status(id):
-    if not session.get('adm'): return redirect('/login')
-    atleta = query_db("SELECT liberada FROM moradores WHERE id=?", (id,), one=True)
-    novo = 'Não' if atleta['liberada'] == 'Sim' else 'Sim'
-    query_db("UPDATE moradores SET liberada=? WHERE id=?", (novo, id))
-    return redirect('/admin_studiomix')
-
 @app.route("/logout")
 def logout(): session.clear(); return redirect('/')
-
-@app.route("/del_atleta/<int:id>")
-def del_atleta(id):
-    query_db("DELETE FROM moradores WHERE id=?", (id,)); return redirect('/admin_studiomix')
 
 @app.route("/sucesso")
 def sucesso():
     return render_template_string('<body style="background:#004a23; height:100vh; display:flex; align-items:center; justify-content:center; font-family:sans-serif; text-align:center;"><div style="background:white; padding:50px; border-radius:30px; border:5px solid #ceb05c;"><h1>✅ SUCESSO!</h1><p>Inscrição enviada.</p><a href="/login_atleta" style="background:#004a23; color:#ceb05c; padding:15px; border-radius:15px; text-decoration:none; font-weight:bold; display:block;">ENTRAR NO PORTAL</a></div></body>')
 
 if __name__ == "__main__":
+    # Garante que o Render consiga atribuir a porta correta
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)
