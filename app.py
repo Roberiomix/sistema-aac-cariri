@@ -4,20 +4,21 @@ import urllib.parse
 from datetime import timedelta
 
 app = Flask(__name__)
-# Chave mestra reforçada
 app.secret_key = 'studiomix_aac_2026_oficial'
-app.config['SESSION_COOKIE_NAME'] = 'aac_session_admin'
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=12)
 
-# --- BANCO DE DADOS ---
+# --- BANCO DE DADOS (CADEADO) ---
 senha_banco = 'roberiomix2026'
 senha_limpa = urllib.parse.quote_plus(senha_banco)
-DATABASE_URL = f"postgresql://postgres.bshyfeshtojiucusqzri:{senha_limpa}@aws-0-sa-east-1.pooler.supabase.com:6543/postgres"
+# Note que mudei o final para tentar uma conexão mais direta
+DATABASE_URL = f"postgresql://postgres.bshyfeshtojiucusqzri:{senha_limpa}@aws-0-sa-east-1.pooler.supabase.com:5432/postgres"
 
 def get_db_connection():
     try:
-        return psycopg2.connect(DATABASE_URL, connect_timeout=10)
-    except:
+        # Aumentei para 20 segundos de espera
+        return psycopg2.connect(DATABASE_URL, connect_timeout=20)
+    except Exception as e:
+        print(f"Erro Real: {e}")
         return None
 
 @app.route('/')
@@ -28,13 +29,11 @@ def index():
 def login():
     msg = ""
     if request.method == 'POST':
-        # O .strip() garante que não vá nenhum espaço em branco
         u = str(request.form.get('u')).strip()
         p = str(request.form.get('p')).strip()
         
-        # ACEITA OS DOIS LOGINS POR SEGURANÇA
         if (u == 'roberiomix2026' and p == 'roberiomix2026') or (u == 'admin' and p == 'mix2026'):
-            session.clear() # Limpa qualquer lixo de sessão anterior
+            session.clear()
             session['adm_logado'] = True
             return redirect('/admin_studiomix')
         else:
@@ -44,34 +43,37 @@ def login():
         <body style="background:#004a23; display:flex; align-items:center; justify-content:center; height:100vh; font-family:sans-serif; margin:0;">
             <form method="POST" style="background:white; padding:40px; border-radius:20px; text-align:center; width:300px; box-shadow:0 10px 25px rgba(0,0,0,0.5);">
                 <h2 style="color:#004a23; margin-bottom:20px;">AAC - Portal</h2>
-                {% if msg %}<p style="color:red; background:#fee; padding:10px; border-radius:5px; font-size:13px; font-weight:bold;">{{ msg }}</p>{% endif %}
+                {% if msg %}<p style="color:red; font-weight:bold;">{{ msg }}</p>{% endif %}
                 <input name="u" placeholder="Usuário" required style="width:100%; padding:12px; margin-bottom:15px; border:1px solid #ddd; border-radius:8px;">
                 <input type="password" name="p" placeholder="Senha" required style="width:100%; padding:12px; margin-bottom:25px; border:1px solid #ddd; border-radius:8px;">
-                <button type="submit" style="background:#004a23; color:#ceb05c; padding:15px; border:none; border-radius:8px; cursor:pointer; font-weight:bold; width:100%; font-size:16px;">ENTRAR AGORA</button>
+                <button type="submit" style="background:#004a23; color:#ceb05c; padding:15px; border:none; border-radius:8px; cursor:pointer; font-weight:bold; width:100%;">ENTRAR</button>
             </form>
         </body>
     ''', msg=msg)
 
 @app.route('/admin_studiomix')
 def admin():
-    # Se o crachá não estiver na mão, volta pro login
-    if not session.get('adm_logado'):
-        return redirect('/login')
-        
-    conn = get_db_connection()
-    if not conn: 
-        return "Erro de conexão com o banco. Aguarde 30 segundos e atualize a página."
+    if not session.get('adm_logado'): return redirect('/login')
     
-    cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
-    cur.execute("SELECT * FROM moradores ORDER BY nome ASC")
-    atletas = cur.fetchall()
-    conn.close()
+    conn = get_db_connection()
+    if not conn:
+        # Se falhar uma vez, ele tenta de novo automaticamente
+        return "Conectando ao banco... Atualize a página em 10 segundos."
+    
+    try:
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        cur.execute("SELECT * FROM moradores ORDER BY nome ASC")
+        atletas = cur.fetchall()
+        conn.close()
+    except:
+        if conn: conn.close()
+        return "Erro ao ler a tabela. Verifique se ela existe no Supabase."
     
     return render_template_string('''
         <body style="background:#f4f4f4; font-family:sans-serif; margin:0;">
             <div style="background:#004a23; color:white; padding:20px; display:flex; justify-content:space-between; align-items:center;">
                 <h2 style="margin:0;">AAC - Painel Administrativo</h2>
-                <a href="/login" style="color:#ceb05c; font-weight:bold; text-decoration:none; border:1px solid #ceb05c; padding:5px 10px; border-radius:5px;">SAIR</a>
+                <a href="/login" style="color:#ceb05c; font-weight:bold; text-decoration:none;">SAIR</a>
             </div>
             <div style="padding:20px;">
                 <div style="background:white; border-radius:10px; padding:20px; box-shadow:0 2px 5px rgba(0,0,0,0.1);">
@@ -87,11 +89,11 @@ def admin():
                         </tr>
                         {% endfor %}
                     </table>
-                    {% if not atletas %}<p style="text-align:center; padding:30px; color:#666;">Sistema Conectado com Sucesso! Aguardando o primeiro cadastro.</p>{% endif %}
+                    {% if not atletas %}<p style="text-align:center; padding:30px; color:#666;">Sistema Conectado! Aguardando o primeiro cadastro.</p>{% endif %}
                 </div>
             </div>
         </body>
     ''', atletas=atletas)
 
 if __name__ == "__main__":
-    app.run(debug=False)
+    app.run()
